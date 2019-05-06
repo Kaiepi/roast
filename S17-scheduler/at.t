@@ -1,7 +1,7 @@
 use v6;
 use Test;
 
-plan 20;
+plan 26;
 
 # real scheduling here
 my $name = $*SCHEDULER.^name;
@@ -45,21 +45,21 @@ my $name = $*SCHEDULER.^name;
 
     lives-ok {
         my Cancellation $c = $*SCHEDULER.cue({ cas $count, { .succ } }, at => Inf);
-    }, "Can pass :at as Inf without throwing";
+    }, "Can pass :at as Inf to ThreadPoolScheduler.cue without throwing";
 
     sleep 3;
-    is $count, 0, "Passing :at as Inf never runs the given block";
+    is $count, 0, "Passing :at as Inf to ThreadPoolScheduler.cue never runs the given block";
 
     lives-ok {
         my Cancellation $c = $*SCHEDULER.cue({ cas $count, { .succ } }, at => -Inf);
-    }, "Can pass :at as -Inf without throwing";
+    }, "Can pass :at as -Inf to ThreadPoolScheduler.cue without throwing";
 
     sleep 3;
-    is $count, 1, "Passing :at as -Inf instantly runs the given block";
+    is $count, 1, "Passing :at as -Inf to ThreadPoolScheduler.cue instantly runs the given block";
 
     throws-like {
         my Cancellation $c = $*SCHEDULER.cue(-> { }, at => NaN);
-    }, X::AdHoc, "Passing :at as NaN throws", message => "Cannot set NaN as a number of seconds";
+    }, X::AdHoc, "Passing :at as NaN to ThreadPoolScheduler.cue throws", message => "Cannot set NaN as a number of seconds";
 }
 
 # fake scheduling from here on out
@@ -95,4 +95,52 @@ ok $*SCHEDULER ~~ Scheduler, "{$*SCHEDULER.^name} does Scheduler role";
     ok @c && @c[*-1].can("cancel"), 'can we cancel (4)';
     is $tracker, '2s2scatch1s', "Cue on $name with :at/:catch *DOES* schedule immediately";
     LEAVE @c>>.cancel;
+}
+
+{
+    my Int     $count  = 0;
+    my Promise $p1    .= new;
+    my Promise $p2    .= new;
+    my Promise $p3    .= new;
+
+    await Promise.anyof(
+        Promise.start({
+            $*SCHEDULER.cue({ $count++ }, at => Inf);
+            $p1.keep;
+            pass "Passing :at as Inf to CurrentThreadScheduler.cue does not hang";
+        }),
+        Promise.in(3).then({
+            flunk "Passing :at as Inf to CurrentThreadScheduler.cue does not hang" unless $p1.status ~~ Kept;
+        })
+    );
+
+    is $count, 0, "Passing :at as Inf to CurrentThreadScheduler.cue never runs the given block";
+
+    await Promise.anyof(
+        Promise.start({
+            $*SCHEDULER.cue({ $count++ }, at => -Inf);
+            $p2.keep;
+            pass "Passing :at as -Inf to CurrentThreadScheduler.cue does not hang";
+        }),
+        Promise.in(3).then({
+            flunk "Passing :at as -Inf to CurrentThreadScheduler.cue does not hang" unless $p2.status ~~ Kept;
+        })
+    );
+
+    is $count, 1, "Passing :at as -Inf to CurrentThreadScheduler.cue instantly runs the given block";
+
+    await Promise.anyof(
+        Promise.start({
+            try $*SCHEDULER.cue(-> { }, at => NaN);
+            $p3.keep;
+            pass "Passing :at as NaN to CurrentThreadScheduler.cue does not hang";
+        }),
+        Promise.in(3).then({
+            flunk "Passing :at as NaN to CurrentThreadScheduler.cue does not hang" unless $p3.status ~~ Kept;
+        })
+    );
+
+    throws-like {
+        $*SCHEDULER.cue(-> { }, at => NaN);
+    }, X::AdHoc, "Passing :at as NaN to CurrentThreadScheduler.cue throws", message => "Cannot set NaN as a number of seconds";
 }
