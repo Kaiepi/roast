@@ -3,6 +3,8 @@ use Test;
 
 plan 40;
 
+my Bool:D $IPv6 = $*RESOLVER.lookup(family => PF_INET6).head.defined;
+
 my $s-address = '0.0.0.0';
 my $c-address = '127.0.0.1';
 my $port = 5000;
@@ -200,17 +202,7 @@ $echoTap.close;
 
 # https://github.com/Raku/old-issue-tracker/issues/6541
 {
-    my Str @hosts = '127.0.0.1';
-
-    if $*VM.name eq 'jvm' {
-        # OpenBSD's OpenJDK package includes custom patches that force it to use IPv4,
-        # making the IPv6 tests fail.
-        @hosts.push: '::1' unless $*VM.osname eq 'openbsd';
-    } else {
-        @hosts.push: '::1';
-    }
-
-    for @hosts -> $host {
+    for '127.0.0.1', do '::1' if $IPv6 -> $host {
         my $port = 5001;
         diag("host=$host");
 
@@ -231,8 +223,7 @@ $echoTap.close;
 
         $c_conn.close(); $s_tap.close();
     }
-
-    skip 'IPv6 for async sockets is not supported on the JVM on OpenBSD', 5 if $*VM.name eq 'jvm' && $*VM.osname eq 'openbsd';
+    skip 'IPv6 support required', 5 unless $IPv6;
 }
 
 {
