@@ -1097,6 +1097,8 @@ S32-hash/push.t
 S32-hash/slice.t
 S32-io/address.t
 S32-io/address-precomp.t
+S32-io/native-resolver-6c.t
+S32-io/native-resolver-6e.t
 S32-io/IO-Socket-Async-UDP.t    # moar
 S32-io/IO-Socket-Async.t
 S32-io/IO-Socket-INET-UNIX.t # moar
