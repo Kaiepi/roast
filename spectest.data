@@ -1143,6 +1143,7 @@ S32-io/socket-accept-and-working-threads.t
 S32-io/socket-fail-invalid-values.t
 S32-io/socket-host-port-split.t
 S32-io/socket-recv-vs-read.t
+S32-io/socket-null-hostnames.t
 S32-io/spurt.t
 S32-io/tell.t
 S32-io/utf16.t    # moar
