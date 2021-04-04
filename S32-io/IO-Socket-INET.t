@@ -1,10 +1,53 @@
 use v6;
 use Test;
 
-plan 29;
+plan 38;
 
 my $localhost = '0.0.0.0';
 my $host      = '127.0.0.1';
+
+{
+    my IO::Address::IPv4:D $address = IO::Address::IPv4('127.0.0.1:5000');
+    my IO::Socket::INET:_  $server;
+    my IO::Socket::INET:_  $client;
+
+    lives-ok {
+        $server .= listen: $address;
+    }, 'can listen on an address';
+    lives-ok {
+        $client .= connect: $address;
+    }, 'can connect to an address';
+
+    lives-ok {
+        $server.local-address
+    }, 'can get the local address of a socket';
+    cmp-ok $server.local-address, &[===], $address,
+               'binding local addresses are idempotent';
+
+    lives-ok {
+        $client.remote-address
+    }, 'can get the remote address of a socket';
+    cmp-ok $client.remote-address, &[===], $address,
+           'connection remote addresses are idempotent';
+
+    $client.close;
+    $server.close;
+}
+
+{
+    my IO::Socket::INET:D $server     .= listen: $localhost, 0;
+    my IO::Socket::INET:D $client     .= connect: $host, $server.local-address.port;
+    my IO::Socket::INET:D $connection  = $server.accept;
+    is $server.local-domain, $localhost,
+       'can get the local domain of a server';
+    is $client.remote-domain, $host,
+       'can get the remote domain of a client';
+    is $connection.local-domain, $localhost,
+       'can get the local domain of an accepted connection';
+    $connection.close;
+    $client.close;
+    $server.close;
+}
 
 # test 2 does echo protocol - Internet RFC 862
 do-test

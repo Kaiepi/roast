@@ -1,7 +1,7 @@
 use v6;
 use Test;
 
-plan 40;
+plan 50;
 
 my Bool:D $IPv6 = $*RESOLVER.lookup(family => PF_INET6).head.defined;
 
@@ -309,6 +309,56 @@ $echoTap.close;
         isa-ok $listen-tap, Tap, "listen tap is a Tap";
         done;
     }
+}
+
+{
+    my IO::Socket::Async::ListenSocket:_ $server;
+    my IO::Socket::Async:_               $client;
+
+    temp $s-address = IO::Address::IPv4("$s-address:$port");
+    temp $c-address = IO::Address::IPv4("$c-address:$port");
+
+    lives-ok {
+        $server = IO::Socket::Async.listen($s-address).tap(*.close);
+    }, 'can bind to addresses';
+    lives-ok {
+        $client = await IO::Socket::Async.connect: $c-address
+    }, 'can connect to addresses';
+
+    lives-ok {
+        $server.local-address
+    }, 'can get the local address of a server';
+    lives-ok {
+        $client.local-address
+    }, 'can get the local address of a client';
+    lives-ok {
+        $client.remote-address
+    }, 'can get the remote address of a client';
+
+    cmp-ok $server.local-address, &[===], $s-address,
+           'binding local addresses are idempotent';
+    cmp-ok $client.remote-address, &[===], $c-address,
+           'connection remote addresses are idempotent';
+
+    $client.close;
+    $server.close;
+}
+
+{
+    my IO::Socket::Async::ListenSocket:_ $server = IO::Socket::Async.listen($s-address, $port).tap({
+        is $^connection.local-domain, $s-address,
+           'can get the local domain of an accepted connection';
+        $^connection.close
+    });
+    is $server.local-domain, $s-address,
+       'can get the local domain of a server';
+
+    my IO::Socket::Async:_ $client = await IO::Socket::Async.connect: $c-address, $port;
+    is $client.remote-domain, $c-address,
+       'can get the remote domain of a connection';
+
+    $client.close;
+    $server.close;
 }
 
 # vim: expandtab shiftwidth=4
