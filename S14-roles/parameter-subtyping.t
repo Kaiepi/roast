@@ -2,7 +2,7 @@ use v6;
 
 use Test;
 
-plan 22;
+plan 27;
 
 # L<S14/Parametric Subtyping>
 
@@ -54,5 +54,21 @@ my Numeric @a;
 my Int @b = 1,2;
 lives-ok({ @a = @b }, 'assignment worked as expected');
 is(@a[0], 1,          'assignment worked as expected');
+
+lives-ok({ EVAL(Q:to/ROLES/) }, 'can do subtyped generic roles');
+role R2[Any ::T] { }
+role R3[Cool ::T] does R2[T] { }
+ROLES
+
+EVAL(Q:to/TESTS/);
+ok(R3[Cool] ~~ R2[Any],  'subtyped generic roles');
+ok(R3[Cool] ~~ R3[Cool], 'subtyped generic roles');
+ok(R3[Int] ~~ R3[Cool],  'subtyped generic roles');
+TESTS
+
+lives-ok({ EVAL(Q:to/ROLE/) }, 'can lookup roles of subtyped generic roles done by roles before they get composed');
+multi sub trait_mod:<is>(Mu:U \T, :ok($)!) { T.^roles[0].^roles }
+role R3[Int ::T] does R2[T] is ok { }
+ROLE
 
 # vim: expandtab shiftwidth=4
